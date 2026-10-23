@@ -1,0 +1,7 @@
+[
+    {"id": 1,"name":"uv","description":"UV package Manager", "url":"curl -LsSf https://astral.sh/uv/install.sh | sh", "category":"Python"},
+    {"id": 2,"name":"starship","description":"Starship CLI", "url":"curl -sS https://starship.rs/install.sh | sh", "category":"Shell"},
+    {"id": 3,"name":"rustup","description":"Rustup Toolchain Management", "url":"curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh", "category":"Rust"},
+    {"id": 4,"name":"gitconfig","description":"Git Configuration", "url":"curl -fsSL https://raw.githubusercontent.com/shahinabdi/git-config/main/setup-git-config.sh | bash", "category":"Shell"},
+    {"id": 5,"name":"eza","description":"eza A modern replacement for ls", "url":"cargo install eza", "category":"Shell"}
+]
