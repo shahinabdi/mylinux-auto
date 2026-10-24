@@ -11,5 +11,11 @@
   {"name": "visual-studio-code", "description": "Code editor", "category": "Editor", "aur": "visual-studio-code-bin", "flatpak": "com.visualstudio.code"},
   {"name": "brave", "description": "Brave", "category": "Browser", "names": {"arch": "brave-bin"}},
   {"name": "docker", "description": "Container engine (runs post-install setup)", "category": "Dev", "names": {"default": "docker", "debian": "docker.io", "fedora": "moby-engine"}},
-  {"name": "docker-compose", "description": "Docker Compose v2", "category": "Dev", "names": {"default": "docker-compose", "debian": "docker-compose-v2", "alpine": "docker-cli-compose"}}
+  {"name": "docker-compose", "description": "Docker Compose v2", "category": "Dev", "names": {"default": "docker-compose", "debian": "docker-compose-v2", "alpine": "docker-cli-compose"}},
+  {"name": "FiraCode", "description": "FiraCode Nerd Font", "category": "Font", "font_asset": "FiraCode"},
+  {"name": "Go-Mono", "description": "Go Mono Nerd Font", "category": "Font", "font_asset": "Go-Mono"},
+  {"name": "Hack", "description": "Hack Nerd Font", "category": "Font", "font_asset": "Hack"},
+  {"name": "Meslo", "description": "Meslo Nerd Font", "category": "Font", "font_asset": "Meslo"},
+  {"name": "JetBrainsMono", "description": "JetBrains Mono Nerd Font", "category": "Font", "font_asset": "JetBrainsMono"},
+  {"name": "Ubuntu", "description": "Ubuntu Nerd Font", "category": "Font", "font_asset": "Ubuntu"}
 ]

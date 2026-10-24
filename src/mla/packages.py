@@ -84,6 +84,11 @@ def install_package(
     dry_run: bool = False,
 ) -> int:
     """Try each source in the configured order (native, aur, flatpak) until one applies."""
+    if package.font_asset:
+        from .scripts.nerd_fonts import install_nerd_font
+
+        return install_nerd_font(package.font_asset, dry_run=dry_run)
+
     distro = distro or detect_distro()
     manager = get_package_manager(distro)
     native = package.native_name(distro.family)

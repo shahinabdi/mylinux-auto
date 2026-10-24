@@ -18,7 +18,7 @@ class Package:
 
     `names` maps a distro family (arch, debian, fedora, ...) or "default" to the
     native package name. `aur` and `flatpak` hold an AUR package name and a
-    Flatpak application ID.
+    Flatpak application ID; `font_asset` identifies a Nerd Fonts release asset.
     """
 
     name: str
@@ -27,6 +27,7 @@ class Package:
     names: dict[str, str] = field(default_factory=dict)
     aur: str | None = None
     flatpak: str | None = None
+    font_asset: str | None = None
 
     def native_name(self, family: str) -> str | None:
         return self.names.get(family) or self.names.get("default")

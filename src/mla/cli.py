@@ -135,7 +135,15 @@ def _run(args: argparse.Namespace) -> int:
             print(f"{package.name:20} {package.category:10} {package.description}")
         return 0
 
-    needs_sudo = args.action == "get" or (args.action == "setup" and args.tool != "starship")
+    package_to_install = find_package(args.package) if args.action == "get" else None
+    if args.action == "get" and package_to_install is None:
+        print(f"Package not found: {args.package}", file=sys.stderr)
+        return 1
+
+    needs_sudo = (
+        (args.action == "get" and package_to_install is not None and not package_to_install.font_asset)
+        or (args.action == "setup" and args.tool != "starship")
+    )
     if needs_sudo and not getattr(args, "dry_run", False):
         if not load_user_config().get("password") and not authenticate_sudo():
             print("Authentication failed.", file=sys.stderr)
@@ -144,12 +152,14 @@ def _run(args: argparse.Namespace) -> int:
     auto_yes = getattr(args, "yes", False) or (load_user_config().get("auto_yes", True) and not getattr(args, "ask", False))
 
     if args.action == "get":
-        package = find_package(args.package)
-        if package is None:
-            print(f"Package not found: {args.package}", file=sys.stderr)
-            return 1
-        code = install_package(package, assume_yes=auto_yes, prefer_flatpak=args.flatpak, dry_run=args.dry_run)
-        if code == 0 and package.name == "docker" and not args.dry_run:
+        assert package_to_install is not None
+        code = install_package(
+            package_to_install,
+            assume_yes=auto_yes,
+            prefer_flatpak=args.flatpak,
+            dry_run=args.dry_run,
+        )
+        if code == 0 and package_to_install.name == "docker" and not args.dry_run:
             from .scripts.docker import post_install
 
             return post_install()
