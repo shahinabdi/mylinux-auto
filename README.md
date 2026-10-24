@@ -48,6 +48,8 @@ toggle an entry, `a` to select all in the current view, `n` to clear that
 view, and `i` to install selected entries. Installed packages and fonts are
 detected automatically. Repository entries can set an `installed_check`
 executable in `repositories.json`; entries without one show an unknown status.
+Press `?` or choose the Help tab for in-TUI instructions and examples showing
+how to add packages, fonts, configs, and repository commands.
 
 User config templates are cataloged in `src/mla/data/userconfigs.json`.
 `mla configs` lists them and `mla config <name>` activates one. MLA copies a

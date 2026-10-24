@@ -91,6 +91,47 @@ class TuiTests(unittest.TestCase):
         self.assertNotIn("Text editor", screen.lines)
         self.assertNotIn("Shell prompt", screen.lines)
 
+    def test_help_view_explains_catalog_types_with_examples(self) -> None:
+        class FakeScreen:
+            def __init__(self) -> None:
+                self.keys = [ord("?"), *([ord("j")] * 30), ord("q")]
+                self.lines: list[str] = []
+
+            def erase(self) -> None:
+                pass
+
+            def getmaxyx(self) -> tuple[int, int]:
+                return 20, 100
+
+            def addnstr(self, *args: object) -> None:
+                self.lines.append(str(args[2]))
+
+            def refresh(self) -> None:
+                pass
+
+            def getch(self) -> int:
+                return self.keys.pop(0)
+
+        screen = FakeScreen()
+        with (
+            patch("mla.tui.get_install_status", return_value="Not installed"),
+            patch("mla.tui.curses.wrapper", side_effect=lambda draw, entries: draw(screen, entries)),
+        ):
+            self.assertEqual(run_tui(self.entries), [])
+
+        help_text = "\n".join(screen.lines)
+        for example in (
+            "ADDING PACKAGES",
+            "ADDING FONTS",
+            "ADDING CONFIGS",
+            "ADDING REPOSITORY COMMANDS",
+            "CATEGORIES",
+            "mla add starship",
+            "userconfigs.json",
+        ):
+            with self.subTest(example=example):
+                self.assertIn(example, help_text)
+
     def test_font_install_status_checks_font_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fonts_dir = Path(temp_dir)
