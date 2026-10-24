@@ -4,6 +4,9 @@ import sys
 from collections.abc import Sequence
 
 from .models import Repository
+from .config import DEFAULT_SOURCE_ORDER, authenticate_sudo, get_user_config_file, load_user_config, save_user_config
+from .packages import ensure_flatpak, ensure_yay, find_package, install_package, load_catalog
+from .utils.distro import detect_distro
 from .storage import load_packages, next_repository_id, save_packages
 
 
@@ -43,6 +46,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run without an interactive confirmation prompt.",
     )
 
+    init_parser = commands.add_parser("init", help="First-time setup: save distro, sudo password and install preferences.")
+    init_parser.add_argument("--sources", help="Comma-separated order, e.g. aur,native,flatpak.")
+    commands.add_parser("pkgs", help="List packages installable by name.")
+    get_parser = commands.add_parser("get", help="Install a package by name for this distro.")
+    get_parser.add_argument("package")
+    get_parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts.")
+    get_parser.add_argument("--ask", action="store_true", help="Keep package manager prompts even if auto_yes is on.")
+    get_parser.add_argument("--dry-run", action="store_true", help="Print the command without running it.")
+    get_parser.add_argument("--flatpak", action="store_true", help="Prefer the Flatpak version.")
+    setup_parser = commands.add_parser("setup", help="Install helper tools (yay, flatpak).")
+    setup_parser.add_argument("tool", choices=["yay", "flatpak", "starship"])
+    setup_parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts.")
+    setup_parser.add_argument("--ask", action="store_true", help="Keep prompts even if auto_yes is on.")
+    commands.add_parser("distro", help="Show the detected Linux distribution.")
+
     return parser
 
 
@@ -80,7 +98,76 @@ def _list_repositories(repositories: list[Repository], category: str | None = No
         )
 
 
+def _init(args: argparse.Namespace) -> int:
+    import getpass
+
+    distro = detect_distro()
+    print(f"Detected: {distro.pretty_name} (family: {distro.family})")
+    config = load_user_config()
+    config["distro"] = {"id": distro.id, "family": distro.family, "pretty_name": distro.pretty_name}
+
+    default = ",".join(config.get("source_order") or DEFAULT_SOURCE_ORDER)
+    raw = args.sources or input(f"Install source order (native, aur, flatpak) [{default}]: ").strip() or default
+    sources = [item.strip() for item in raw.split(",") if item.strip()]
+    if not sources or any(item not in ("native", "aur", "flatpak") for item in sources):
+        print("Sources must be from: native, aur, flatpak.", file=sys.stderr)
+        return 1
+    config["source_order"] = sources
+    config["auto_yes"] = input("Skip package manager confirmation prompts (auto yes)? [Y/n]: ").strip().lower() != "n"
+    config.setdefault("package_sources", {})
+
+    if input("Store sudo password in the config file in PLAIN TEXT (chmod 600)? [y/N]: ").strip().lower() == "y":
+        config["password"] = getpass.getpass("sudo password: ")
+    else:
+        config.pop("password", None)
+
+    path = save_user_config(config)
+    print(f"Saved {path}. Per-package overrides go in \"package_sources\", e.g. {{\"firefox\": \"flatpak\"}}.")
+    return 0
+
+
 def _run(args: argparse.Namespace) -> int:
+    if args.action == "init":
+        return _init(args)
+
+    if args.action == "pkgs":
+        for package in load_catalog():
+            print(f"{package.name:20} {package.category:10} {package.description}")
+        return 0
+
+    needs_sudo = args.action == "get" or (args.action == "setup" and args.tool != "starship")
+    if needs_sudo and not getattr(args, "dry_run", False):
+        if not load_user_config().get("password") and not authenticate_sudo():
+            print("Authentication failed.", file=sys.stderr)
+            return 1
+
+    auto_yes = getattr(args, "yes", False) or (load_user_config().get("auto_yes", True) and not getattr(args, "ask", False))
+
+    if args.action == "get":
+        package = find_package(args.package)
+        if package is None:
+            print(f"Package not found: {args.package}", file=sys.stderr)
+            return 1
+        code = install_package(package, assume_yes=auto_yes, prefer_flatpak=args.flatpak, dry_run=args.dry_run)
+        if code == 0 and package.name == "docker" and not args.dry_run:
+            from .scripts.docker import post_install
+
+            return post_install()
+        return code
+
+    if args.action == "setup":
+        if args.tool == "starship":
+            from .scripts.starship import configure
+
+            return configure()
+        ok = ensure_yay(assume_yes=auto_yes) if args.tool == "yay" else ensure_flatpak(assume_yes=auto_yes)
+        return 0 if ok else 1
+
+    if args.action == "distro":
+        distro = detect_distro()
+        print(f"{distro.pretty_name} (id={distro.id}, family={distro.family})")
+        return 0
+
     repositories = load_packages()
 
     if args.action == "list":
@@ -142,7 +229,12 @@ def _run(args: argparse.Namespace) -> int:
             if confirmation not in {"y", "yes"}:
                 print("Installation cancelled.")
                 return 1
-        return subprocess.run(repository.url, shell=True, check=False).returncode
+        code = subprocess.run(repository.url, shell=True, check=False).returncode
+        if code == 0 and repository.name == "starship":
+            from .scripts.starship import configure
+
+            return configure()
+        return code
 
     raise AssertionError(f"Unhandled action: {args.action}")
 

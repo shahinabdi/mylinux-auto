@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from mylinux_auto.cli import main
+from mla.cli import main
 
 
 class CliTests(unittest.TestCase):
@@ -84,7 +84,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("cancelled", stdout)
 
-        with patch("mylinux_auto.cli.subprocess.run") as run:
+        with patch("mla.cli.subprocess.run") as run:
             run.return_value.returncode = 0
             result, _, _ = self.invoke("install", "uv", "--yes")
 

@@ -1,0 +1,15 @@
+[
+  {"name": "zsh", "description": "Z shell", "category": "Shell", "names": {"default": "zsh"}},
+  {"name": "git", "description": "Version control", "category": "Dev", "names": {"default": "git"}},
+  {"name": "curl", "description": "URL transfer tool", "category": "Tools", "names": {"default": "curl"}},
+  {"name": "neovim", "description": "Vim-based editor", "category": "Editor", "names": {"default": "neovim"}},
+  {"name": "fd", "description": "Fast find alternative", "category": "Tools", "names": {"default": "fd", "debian": "fd-find", "fedora": "fd-find"}},
+  {"name": "python-pip", "description": "Python package installer", "category": "Python", "names": {"arch": "python-pip", "debian": "python3-pip", "fedora": "python3-pip", "suse": "python3-pip", "alpine": "py3-pip"}},
+  {"name": "base-devel", "description": "Build toolchain", "category": "Dev", "names": {"arch": "base-devel", "debian": "build-essential", "fedora": "@development-tools", "suse": "devel_basis"}},
+  {"name": "firefox", "description": "Web browser", "category": "Browser", "names": {"default": "firefox"}, "flatpak": "org.mozilla.firefox"},
+  {"name": "spotify", "description": "Music streaming", "category": "Media", "aur": "spotify", "flatpak": "com.spotify.Client"},
+  {"name": "visual-studio-code", "description": "Code editor", "category": "Editor", "aur": "visual-studio-code-bin", "flatpak": "com.visualstudio.code"},
+  {"name": "brave", "description": "Brave", "category": "Browser", "names": {"arch": "brave-bin"}},
+  {"name": "docker", "description": "Container engine (runs post-install setup)", "category": "Dev", "names": {"default": "docker", "debian": "docker.io", "fedora": "moby-engine"}},
+  {"name": "docker-compose", "description": "Docker Compose v2", "category": "Dev", "names": {"default": "docker-compose", "debian": "docker-compose-v2", "alpine": "docker-cli-compose"}}
+]

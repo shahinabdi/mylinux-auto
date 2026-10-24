@@ -40,7 +40,7 @@ mylinux-auto install uv --yes
 
 Catalog commands are shell commands and may make system changes. Only install
 entries from a catalog you trust. The default catalog is stored at
-`src/mylinux_auto/data/repositories.json`; set `REPOSITORY_FILE` to use a
+`src/mla/data/repositories.json`; set `REPOSITORY_FILE` to use a
 different JSON catalog.
 
 ## Catalog format
