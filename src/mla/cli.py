@@ -3,16 +3,17 @@ import subprocess
 import sys
 from collections.abc import Sequence
 
-from .models import Repository
+from .models import Package, Repository, UserConfig
 from .config import DEFAULT_SOURCE_ORDER, authenticate_sudo, get_user_config_file, load_user_config, save_user_config
 from .packages import ensure_flatpak, ensure_yay, find_package, install_package, load_catalog
 from .utils.distro import detect_distro
-from .storage import load_packages, next_repository_id, save_packages
+from .storage import load_packages, save_packages
+from .user_configs import install_user_config, load_user_configs
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="mylinux-auto",
+        prog="mla",
         description="Manage and run your Linux software setup command catalog.",
     )
     commands = parser.add_subparsers(dest="action", required=True)
@@ -20,11 +21,11 @@ def _build_parser() -> argparse.ArgumentParser:
     list_parser = commands.add_parser("list", help="List catalog entries.")
     list_parser.add_argument("--category", help="Show only entries in this category.")
 
-    search_parser = commands.add_parser("search", help="Search names, descriptions, and categories.")
+    search_parser = commands.add_parser("search", help="Search repository names, descriptions, and categories.")
     search_parser.add_argument("query", help="Text to search for.")
 
     show_parser = commands.add_parser("show", help="Show an entry and its setup command.")
-    show_parser.add_argument("entry", help="Entry name or numeric ID.")
+    show_parser.add_argument("entry", help="Repository name.")
 
     add_parser = commands.add_parser("add", help="Add a setup command to the catalog.")
     add_parser.add_argument("name")
@@ -33,13 +34,13 @@ def _build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("category")
 
     remove_parser = commands.add_parser("remove", help="Remove an entry from the catalog.")
-    remove_parser.add_argument("entry", help="Entry name or numeric ID.")
+    remove_parser.add_argument("entry", help="Repository name.")
 
     install_parser = commands.add_parser(
         "install",
         help="Run an entry's shell command after confirmation.",
     )
-    install_parser.add_argument("entry", help="Entry name or numeric ID.")
+    install_parser.add_argument("entry", help="Repository name.")
     install_parser.add_argument(
         "--yes",
         action="store_true",
@@ -60,20 +61,24 @@ def _build_parser() -> argparse.ArgumentParser:
     setup_parser.add_argument("--yes", action="store_true", help="Skip confirmation prompts.")
     setup_parser.add_argument("--ask", action="store_true", help="Keep prompts even if auto_yes is on.")
     commands.add_parser("distro", help="Show the detected Linux distribution.")
+    commands.add_parser("configs", help="List available user configuration templates.")
+    config_parser = commands.add_parser("config", help="Activate a user configuration template.")
+    config_parser.add_argument("name", help="User config name.")
+    commands.add_parser(
+        "tui",
+        help="Browse and install packages, fonts, configs, and repositories interactively.",
+    )
 
     return parser
 
 
 def _find_repository(repositories: list[Repository], entry: str) -> Repository | None:
-    if entry.isdecimal():
-        repository_id = int(entry)
-        return next((repo for repo in repositories if repo.id == repository_id), None)
     normalized_entry = entry.casefold()
     return next((repo for repo in repositories if repo.name.casefold() == normalized_entry), None)
 
 
 def _print_repository(repository: Repository) -> None:
-    print(f"{repository.name} (ID: {repository.id})")
+    print(repository.name)
     print(f"Category: {repository.category}")
     print(f"Description: {repository.description}")
     print(f"Command: {repository.url}")
@@ -90,11 +95,11 @@ def _list_repositories(repositories: list[Repository], category: str | None = No
 
     name_width = max(len("NAME"), *(len(repo.name) for repo in repositories))
     category_width = max(len("CATEGORY"), *(len(repo.category) for repo in repositories))
-    print(f"{'ID':>3}  {'NAME':<{name_width}}  {'CATEGORY':<{category_width}}  DESCRIPTION")
+    print(f"{'NAME':<{name_width}}  {'CATEGORY':<{category_width}}  DESCRIPTION")
     for repository in sorted(repositories, key=lambda repo: repo.name.casefold()):
         print(
-            f"{repository.id:>3}  {repository.name:<{name_width}}  "
-            f"{repository.category:<{category_width}}  {repository.description}"
+            f"{repository.name:<{name_width}}  {repository.category:<{category_width}}  "
+            f"{repository.description}"
         )
 
 
@@ -126,9 +131,103 @@ def _init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_tui() -> int:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        print("The TUI requires an interactive terminal.", file=sys.stderr)
+        return 1
+
+    from .tui import CatalogEntry, get_install_status, run_tui
+
+    packages = load_catalog()
+    repositories = load_packages()
+    user_configs = load_user_configs()
+    entries = [
+        CatalogEntry("package", package.name, package.category, package.description, package)
+        for package in packages
+    ] + [
+        CatalogEntry(
+            "repository",
+            repository.name,
+            repository.category,
+            repository.description,
+            repository,
+        )
+        for repository in repositories
+    ] + [
+        CatalogEntry(
+            "config",
+            config.name,
+            config.category,
+            config.description,
+            config,
+        )
+        for config in user_configs
+    ]
+    selected = run_tui(entries)
+    if not selected:
+        return 0
+
+    already_installed = [entry for entry in selected if get_install_status(entry) == "Installed"]
+    pending = [entry for entry in selected if entry not in already_installed]
+    if already_installed:
+        print("Already installed; will skip:")
+        for entry in already_installed:
+            print(f"  {entry.kind}: {entry.name}")
+    if not pending:
+        return 0
+
+    print("Selected entries:")
+    for entry in pending:
+        print(f"  {entry.kind}: {entry.name}")
+    try:
+        confirmation = input(
+            f"Install {len(pending)} selected "
+            f"entr{'y' if len(pending) == 1 else 'ies'}? [y/N] "
+        )
+    except EOFError:
+        confirmation = ""
+    if confirmation.strip().casefold() not in {"y", "yes"}:
+        print("Installation cancelled.")
+        return 1
+
+    needs_sudo = any(
+        isinstance(entry.value, Package) and not entry.value.font_asset
+        for entry in pending
+    )
+    if needs_sudo and not load_user_config().get("password") and not authenticate_sudo():
+        print("Authentication failed.", file=sys.stderr)
+        return 1
+
+    auto_yes = load_user_config().get("auto_yes", True)
+    failed = False
+    for entry in pending:
+        print(f"\nInstalling {entry.name} ({entry.kind})...")
+        if isinstance(entry.value, Package):
+            code = install_package(entry.value, assume_yes=auto_yes)
+            if code == 0 and entry.name == "docker":
+                from .scripts.docker import post_install
+
+                code = post_install()
+        elif isinstance(entry.value, Repository):
+            code = subprocess.run(entry.value.url, shell=True, check=False).returncode
+            if code == 0 and entry.name == "starship":
+                from .scripts.starship import configure
+
+                code = configure()
+        else:
+            code = install_user_config(entry.value)
+        if code != 0:
+            print(f"Installation failed for {entry.name} (exit code {code}).", file=sys.stderr)
+            failed = True
+    return 1 if failed else 0
+
+
 def _run(args: argparse.Namespace) -> int:
     if args.action == "init":
         return _init(args)
+
+    if args.action == "tui":
+        return _run_tui()
 
     if args.action == "pkgs":
         for package in load_catalog():
@@ -178,6 +277,22 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{distro.pretty_name} (id={distro.id}, family={distro.family})")
         return 0
 
+    if args.action == "configs":
+        configs = load_user_configs()
+        for config in configs:
+            print(f"{config.name:16} {config.category:10} {config.description}")
+        return 0
+
+    if args.action == "config":
+        config = next(
+            (item for item in load_user_configs() if item.name.casefold() == args.name.casefold()),
+            None,
+        )
+        if config is None:
+            print(f"User config not found: {args.name}", file=sys.stderr)
+            return 1
+        return install_user_config(config)
+
     repositories = load_packages()
 
     if args.action == "list":
@@ -202,7 +317,6 @@ def _run(args: argparse.Namespace) -> int:
             print(f"An entry named {args.name!r} already exists.", file=sys.stderr)
             return 2
         repository = Repository(
-            id=next_repository_id(repositories),
             name=args.name,
             description=args.description,
             url=args.command,
@@ -210,7 +324,7 @@ def _run(args: argparse.Namespace) -> int:
         )
         repositories.append(repository)
         save_packages(repositories)
-        print(f"Added {repository.name} (ID: {repository.id}).")
+        print(f"Added {repository.name}.")
         return 0
 
     repository = _find_repository(repositories, args.entry)
@@ -255,5 +369,5 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return _run(args)
     except (OSError, ValueError) as error:
-        print(f"mylinux-auto: {error}", file=sys.stderr)
+        print(f"mla: {error}", file=sys.stderr)
         return 1

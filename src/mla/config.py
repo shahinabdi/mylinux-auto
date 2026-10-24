@@ -16,6 +16,11 @@ def get_packages_file() -> Path:
     return Path(override) if override else BASE_DIR / "data" / "packages.json"
 
 
+def get_user_configs_file() -> Path:
+    override = os.environ.get("USER_CONFIGS_FILE")
+    return Path(override) if override else BASE_DIR / "data" / "userconfigs.json"
+
+
 _sudo_password: str | None = None
 
 
@@ -55,6 +60,10 @@ def get_user_config_file() -> Path:
         return Path(override)
     base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
     return Path(base) / "mla" / "config.json"
+
+
+def get_mla_config_dir() -> Path:
+    return get_user_config_file().parent
 
 
 def load_user_config() -> dict:

@@ -25,7 +25,6 @@ class CliTests(unittest.TestCase):
                         "category": "Python",
                     },
                     {
-                        "id": 2,
                         "name": "starship",
                         "description": "Shell prompt",
                         "url": "echo install starship",
@@ -71,12 +70,23 @@ class CliTests(unittest.TestCase):
         self.assertIn("Added eza", stdout)
 
         catalog = json.loads(self.catalog_path.read_text(encoding="utf-8"))
-        self.assertEqual(catalog[-1]["id"], 3)
+        self.assertEqual(catalog[-1]["name"], "eza")
+        self.assertNotIn("id", catalog[-1])
 
-        result, stdout, _ = self.invoke("remove", "3")
+        result, stdout, _ = self.invoke("remove", "eza")
         self.assertEqual(result, 0)
         self.assertIn("Removed eza", stdout)
         self.assertEqual(len(json.loads(self.catalog_path.read_text(encoding="utf-8"))), 2)
+
+    def test_repository_listing_and_show_no_longer_display_ids(self) -> None:
+        result, stdout, _ = self.invoke("list")
+        self.assertEqual(result, 0)
+        self.assertIn("NAME", stdout)
+        self.assertNotIn("ID", stdout)
+
+        result, stdout, _ = self.invoke("show", "uv")
+        self.assertEqual(result, 0)
+        self.assertNotIn("ID:", stdout)
 
     def test_install_requires_confirmation_and_runs_after_yes(self) -> None:
         with patch("builtins.input", return_value="n"):

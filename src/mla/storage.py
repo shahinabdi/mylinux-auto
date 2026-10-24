@@ -8,22 +8,20 @@ from .models import Repository
 
 
 def _validate_repositories(repositories: list[Repository]) -> None:
-    seen_ids: set[int] = set()
     seen_names: set[str] = set()
 
     for repository in repositories:
-        if isinstance(repository.id, bool) or not isinstance(repository.id, int) or repository.id < 1:
-            raise ValueError("Repository IDs must be positive integers.")
         for field_name in ("name", "description", "url", "category"):
             value = getattr(repository, field_name)
             if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"Repository {repository.id} has an empty or invalid {field_name}.")
-        if repository.id in seen_ids:
-            raise ValueError(f"Duplicate repository ID: {repository.id}.")
+                raise ValueError(f"Repository {repository.name!r} has an empty or invalid {field_name}.")
+        if repository.installed_check is not None and (
+            not isinstance(repository.installed_check, str) or not repository.installed_check.strip()
+        ):
+            raise ValueError(f"Repository {repository.name!r} has an invalid installed_check.")
         normalized_name = repository.name.casefold()
         if normalized_name in seen_names:
             raise ValueError(f"Duplicate repository name: {repository.name}.")
-        seen_ids.add(repository.id)
         seen_names.add(normalized_name)
 
 
@@ -42,6 +40,7 @@ def load_packages() -> list[Repository]:
     for index, item in enumerate(raw_repositories):
         if not isinstance(item, dict):
             raise ValueError(f"Repository entry {index + 1} in {data_file} must be a JSON object.")
+        item.pop("id", None)
         try:
             repositories.append(Repository(**item))
         except TypeError as error:
@@ -72,6 +71,3 @@ def save_packages(repositories: list[Repository]) -> None:
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
-
-def next_repository_id(repositories: list[Repository]) -> int:
-    return max((repo.id for repo in repositories), default=0) + 1
