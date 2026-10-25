@@ -1,8 +1,9 @@
-# mla
+# MyLinuxAutomation(MLA)
 
-`mla` is a small command-line catalog for Linux software setup
-commands. It can list, search, inspect, add, and remove catalog entries. The
-`install` command runs the selected entry's shell command.
+MyLinuxAutomation(MLA), invoked with the `mla` command, is a small
+command-line catalog for Linux software setup commands. It can list, search,
+inspect, add, and remove catalog entries. The `install` command runs the
+selected entry's shell command.
 
 ## Install
 
@@ -45,8 +46,10 @@ The package catalog includes tmux, Alacritty, Kitty, and eza, as well as the
 available Nerd Fonts. The `tui` command shows packages, fonts, configs, and
 repository commands in one place. Use the arrow keys to navigate, Space to
 toggle an entry, `a` to select all in the current view, `n` to clear that
-view, and `i` to install selected entries. Installed packages and fonts are
-detected automatically. Repository entries can set an `installed_check`
+view, and `i` to install selected entries. Selecting or clearing entries keeps
+you on the current view. Press `q` and then `y` to confirm quitting; Enter does
+not quit. Installed packages and fonts are detected automatically.
+Repository entries can set an `installed_check`
 executable in `repositories.json`; entries without one show an unknown status.
 Press `?` or choose the Help tab for in-TUI instructions and examples showing
 how to add packages, fonts, configs, and repository commands.

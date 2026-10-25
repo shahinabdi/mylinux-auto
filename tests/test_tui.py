@@ -75,6 +75,9 @@ class TuiTests(unittest.TestCase):
             def refresh(self) -> None:
                 pass
 
+            def timeout(self, delay: int) -> None:
+                pass
+
             def getch(self) -> int:
                 return self.keys.pop(0)
 
@@ -86,15 +89,120 @@ class TuiTests(unittest.TestCase):
             selected = run_tui(self.entries)
 
         self.assertEqual(selected, self.entries)
-        self.assertTrue(any("SOFTWARE SETUP" in line for line in screen.lines))
+        self.assertTrue(any("MyLinuxAutomation(MLA)" in line for line in screen.lines))
         self.assertTrue(any("NOT INSTALLED" in line for line in screen.lines))
         self.assertNotIn("Text editor", screen.lines)
         self.assertNotIn("Shell prompt", screen.lines)
 
+    def test_enter_does_not_quit_and_q_requires_confirmation(self) -> None:
+        class FakeScreen:
+            def __init__(self) -> None:
+                self.keys = [10, ord("q"), ord("n"), ord("q"), ord("y")]
+                self.lines: list[str] = []
+
+            def erase(self) -> None:
+                pass
+
+            def getmaxyx(self) -> tuple[int, int]:
+                return 20, 80
+
+            def addnstr(self, *args: object) -> None:
+                self.lines.append(str(args[2]))
+
+            def refresh(self) -> None:
+                pass
+
+            def getch(self) -> int:
+                return self.keys.pop(0)
+
+        screen = FakeScreen()
+        with (
+            patch("mla.tui.get_install_status", return_value="Not installed"),
+            patch("mla.tui.curses.wrapper", side_effect=lambda draw, entries: draw(screen, entries)),
+        ):
+            selected = run_tui(self.entries)
+
+        self.assertEqual(selected, [])
+        self.assertTrue(any("Quit MyLinuxAutomation(MLA)? [y/N]" in line for line in screen.lines))
+
+    def test_selecting_and_clearing_stays_in_current_view(self) -> None:
+        class FakeScreen:
+            def __init__(self) -> None:
+                self.keys = [ord("2"), ord("a"), ord("n"), ord("q"), ord("n"), ord("q"), ord("y")]
+                self.lines: list[str] = []
+
+            def erase(self) -> None:
+                pass
+
+            def getmaxyx(self) -> tuple[int, int]:
+                return 20, 80
+
+            def addnstr(self, *args: object) -> None:
+                self.lines.append(str(args[2]))
+
+            def refresh(self) -> None:
+                pass
+
+            def timeout(self, delay: int) -> None:
+                pass
+
+            def getch(self) -> int:
+                return self.keys.pop(0)
+
+        screen = FakeScreen()
+        with (
+            patch("mla.tui.get_install_status", return_value="Not installed"),
+            patch("mla.tui.curses.wrapper", side_effect=lambda draw, entries: draw(screen, entries)),
+        ):
+            selected = run_tui(self.entries)
+
+        self.assertEqual(selected, [])
+        self.assertIn("Selected all 1 entries in Packages.", screen.lines)
+        self.assertIn("Cleared selection in Packages.", screen.lines)
+
+    def test_selection_notice_clears_and_restores_footer_controls(self) -> None:
+        class FakeScreen:
+            def __init__(self) -> None:
+                self.keys = [ord("n"), ord("i")]
+                self.lines: list[str] = []
+                self.timed_out = False
+
+            def erase(self) -> None:
+                pass
+
+            def getmaxyx(self) -> tuple[int, int]:
+                return 20, 80
+
+            def addnstr(self, *args: object) -> None:
+                self.lines.append(str(args[2]))
+
+            def refresh(self) -> None:
+                pass
+
+            def timeout(self, delay: int) -> None:
+                self.timed_out = delay > 0
+
+            def getch(self) -> int:
+                if self.timed_out:
+                    self.timed_out = False
+                    return -1
+                return self.keys.pop(0)
+
+        screen = FakeScreen()
+        with (
+            patch("mla.tui.get_install_status", return_value="Not installed"),
+            patch("mla.tui.curses.wrapper", side_effect=lambda draw, entries: draw(screen, entries)),
+        ):
+            self.assertEqual(run_tui(self.entries), [])
+
+        self.assertIn("Cleared selection in All.", screen.lines)
+        self.assertIn("view", screen.lines)
+        self.assertIn("quit", screen.lines)
+
     def test_help_view_explains_catalog_types_with_examples(self) -> None:
         class FakeScreen:
             def __init__(self) -> None:
-                self.keys = [ord("?"), *([ord("j")] * 30), ord("q")]
+                self.keys = [ord("?"), *([ord("j")] * 30), ord("q"), ord("y")]
                 self.lines: list[str] = []
 
             def erase(self) -> None:

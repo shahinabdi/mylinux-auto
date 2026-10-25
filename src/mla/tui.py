@@ -13,9 +13,10 @@ from .utils.distro import Distro, detect_distro
 EntryKind = Literal["package", "repository", "config"]
 VIEWS = ("All", "Packages", "Fonts", "Configs", "Repositories", "Help")
 HELP_CONTENT = (
-    ("HOW TO USE MLA", True),
-    ("Choose a tab with Left/Right or keys 1-6. Space checks an item; a selects all in that tab; n clears it.", False),
+    ("HOW TO USE MYLINUXAUTOMATION(MLA)", True),
+    ("Choose a tab with Left/Right or keys 1-6. Space checks an item; a selects all in that tab; n clears it. Selection changes stay on the current tab.", False),
     ("Press i to install checked items. Already installed items are skipped.", False),
+    ("Press q, then y to confirm quitting. Enter does not quit.", False),
     ("", False),
     ("ADDING PACKAGES", True),
     ("A package is software installed by your distro package manager. Edit src/mla/data/packages.json in a source checkout.", False),
@@ -215,20 +216,27 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
     offset = 0
     help_offset = 0
     message = ""
+    confirm_quit = False
 
     while True:
         screen.erase()
         height, width = screen.getmaxyx()
         if height < 7 or width < 32:
+            prompt = "Quit MLA? [y/N]" if width < 35 else "Quit MyLinuxAutomation(MLA)? [y/N]"
             screen.addnstr(
                 0,
                 0,
-                "Terminal too small. Resize it or press q to quit.",
+                prompt if confirm_quit else "Terminal too small. Resize it or press q.",
                 max(1, width - 1),
             )
             screen.refresh()
-            if screen.getch() in (ord("q"), ord("Q"), 27):
-                return set()
+            key = screen.getch()
+            if confirm_quit:
+                if key in (ord("y"), ord("Y")):
+                    return set()
+                confirm_quit = False
+            elif key == ord("q"):
+                confirm_quit = True
             continue
 
         view = VIEWS[view_index]
@@ -244,7 +252,9 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
             elif cursor >= offset + max_rows:
                 offset = cursor - max_rows + 1
 
-        screen.addnstr(0, 0, "mla  /  SOFTWARE SETUP", width - 1, styles["title"])
+        screen.addnstr(
+            0, 0, "MyLinuxAutomation(MLA)  /  SOFTWARE SETUP", width - 1, styles["title"]
+        )
         column = 0
         for index, name in enumerate(VIEWS):
             label = f" {index + 1} {name} "
@@ -326,7 +336,10 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
 
         footer = height - 2
         screen.addnstr(footer, 0, "─" * (width - 1), width - 1, styles["dim"])
-        if message:
+        if confirm_quit:
+            prompt = "Quit MLA? [y/N]" if width < 35 else "Quit MyLinuxAutomation(MLA)? [y/N]"
+            screen.addnstr(footer + 1, 0, prompt, width - 1, styles["warn"])
+        elif message:
             screen.addnstr(footer + 1, 0, message, width - 1, styles["warn"])
         else:
             hints = (
@@ -343,9 +356,22 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
                 x += len(action) + 2
         screen.refresh()
 
+        if message:
+            screen.timeout(1500)
         key = screen.getch()
-        if key in (ord("q"), ord("Q"), 27):
-            return set()
+        if message:
+            screen.timeout(-1)
+            message = ""
+            if key == -1:
+                continue
+        if confirm_quit:
+            if key in (ord("y"), ord("Y")):
+                return set()
+            confirm_quit = False
+            continue
+        if key == ord("q"):
+            confirm_quit = True
+            continue
         if key in (curses.KEY_LEFT, ord("h")):
             view_index = (view_index - 1) % len(VIEWS)
             cursor = offset = 0
@@ -380,7 +406,7 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
         elif key in (ord("n"), ord("N")):
             update_selection(selected, visible, False)
             message = f"Cleared selection in {view}."
-        elif key in (ord("i"), ord("I"), curses.KEY_ENTER, 10, 13):
+        elif key in (ord("i"), ord("I")):
             return selected
 
 
