@@ -46,9 +46,11 @@ The package catalog includes tmux, Alacritty, Kitty, and eza, as well as the
 available Nerd Fonts. The `tui` command shows packages, fonts, configs, and
 repository commands in one place. Use the arrow keys to navigate, Space to
 toggle an entry, `a` to select all in the current view, `n` to clear that
-view, and `i` to install selected entries. Selecting or clearing entries keeps
-you on the current view. Press `q` and then `y` to confirm quitting; Enter does
-not quit. Installed packages and fonts are detected automatically.
+view, `f` to toggle a filter showing only entries detected as not installed,
+and `i` to install selected entries. The filter excludes entries with unknown
+install status. Selecting or clearing entries keeps you on the current view.
+Press `q` and then `y` to confirm quitting; Enter does not quit. Installed
+packages and fonts are detected automatically.
 Repository entries can set an `installed_check`
 executable in `repositories.json`; entries without one show an unknown status.
 Press `?` or choose the Help tab for in-TUI instructions and examples showing

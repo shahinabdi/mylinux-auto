@@ -14,7 +14,7 @@ EntryKind = Literal["package", "repository", "config"]
 VIEWS = ("All", "Packages", "Fonts", "Configs", "Repositories", "Help")
 HELP_CONTENT = (
     ("HOW TO USE MYLINUXAUTOMATION(MLA)", True),
-    ("Choose a tab with Left/Right or keys 1-6. Space checks an item; a selects all in that tab; n clears it. Selection changes stay on the current tab.", False),
+    ("Choose a tab with Left/Right or keys 1-6. Press f to show only not-installed items. Space checks an item; a selects all in that tab; n clears it.", False),
     ("Press i to install checked items. Already installed items are skipped.", False),
     ("Press q, then y to confirm quitting. Enter does not quit.", False),
     ("", False),
@@ -80,6 +80,13 @@ def visible_entries(entries: list[CatalogEntry], view: str) -> list[CatalogEntry
     if view == "Repositories":
         return [entry for entry in entries if entry.kind == "repository"]
     return entries
+
+
+def not_installed_entries(
+    entries: list[CatalogEntry],
+    statuses: dict[str, str],
+) -> list[CatalogEntry]:
+    return [entry for entry in entries if statuses[entry.key] == "Not installed"]
 
 
 def update_selection(
@@ -217,6 +224,7 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
     help_offset = 0
     message = ""
     confirm_quit = False
+    not_installed_only = False
 
     while True:
         screen.erase()
@@ -241,6 +249,8 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
 
         view = VIEWS[view_index]
         visible = visible_entries(entries, view)
+        if not_installed_only and view != "Help":
+            visible = not_installed_entries(visible, statuses)
         if visible:
             cursor = min(cursor, len(visible) - 1)
         else:
@@ -297,7 +307,8 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
             screen.addnstr(
                 3,
                 0,
-                f"{len(visible)} entries   |   {len(selected)} selected",
+                f"{len(visible)} entries   |   {len(selected)} selected"
+                f"{'   |   NOT INSTALLED ONLY' if not_installed_only else ''}",
                 width - 1,
                 styles["dim"],
             )
@@ -344,7 +355,7 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
         else:
             hints = (
                 ("←→", "view"), ("Space", "toggle"), ("a", "all"), ("n", "clear"),
-                ("i", "install"), ("?", "help"), ("q", "quit"),
+                ("f", "filter"), ("i", "install"), ("?", "help"), ("q", "quit"),
             )
             x = 0
             for hint_key, action in hints:
@@ -384,6 +395,14 @@ def _draw(screen: curses.window, entries: list[CatalogEntry]) -> set[str]:
         elif key == ord("6") or key in (ord("?"), ord("H")):
             view_index = VIEWS.index("Help")
             help_offset = 0
+        elif key in (ord("f"), ord("F")) and view != "Help":
+            not_installed_only = not not_installed_only
+            cursor = offset = 0
+            message = (
+                "Showing only not-installed entries."
+                if not_installed_only
+                else "Showing all entries."
+            )
         elif key in (curses.KEY_UP, ord("k")) and (visible or view == "Help"):
             if view == "Help":
                 help_offset = max(0, help_offset - 1)

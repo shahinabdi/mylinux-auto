@@ -6,7 +6,14 @@ from unittest.mock import patch
 
 from mla.cli import _run_tui, main
 from mla.models import Package, Repository, UserConfig
-from mla.tui import CatalogEntry, get_install_status, run_tui, update_selection, visible_entries
+from mla.tui import (
+    CatalogEntry,
+    get_install_status,
+    not_installed_entries,
+    run_tui,
+    update_selection,
+    visible_entries,
+)
 from mla.utils.distro import Distro
 
 
@@ -56,6 +63,19 @@ class TuiTests(unittest.TestCase):
 
         update_selection(selected, [self.font], False)
         self.assertEqual(selected, {self.package.key})
+
+    def test_not_installed_filter_excludes_installed_and_unknown(self) -> None:
+        statuses = {
+            self.package.key: "Not installed",
+            self.font.key: "Installed",
+            self.repository.key: "Unknown",
+            self.config.key: "Not installed",
+        }
+
+        self.assertEqual(
+            not_installed_entries(self.entries, statuses),
+            [self.package, self.config],
+        )
 
     def test_tui_select_all_returns_selected_entries(self) -> None:
         class FakeScreen:
@@ -198,6 +218,50 @@ class TuiTests(unittest.TestCase):
         self.assertIn("Cleared selection in All.", screen.lines)
         self.assertIn("view", screen.lines)
         self.assertIn("quit", screen.lines)
+
+    def test_filter_toggle_limits_selection_and_can_be_turned_off(self) -> None:
+        class FakeScreen:
+            def __init__(self) -> None:
+                self.keys = [ord("f"), ord("a"), ord("f"), ord("a"), ord("i")]
+                self.lines: list[str] = []
+
+            def erase(self) -> None:
+                pass
+
+            def getmaxyx(self) -> tuple[int, int]:
+                return 20, 100
+
+            def addnstr(self, *args: object) -> None:
+                self.lines.append(str(args[2]))
+
+            def refresh(self) -> None:
+                pass
+
+            def timeout(self, delay: int) -> None:
+                pass
+
+            def getch(self) -> int:
+                return self.keys.pop(0)
+
+        screen = FakeScreen()
+        status_by_key = {
+            self.package.key: "Not installed",
+            self.font.key: "Installed",
+            self.repository.key: "Unknown",
+            self.config.key: "Not installed",
+        }
+        with (
+            patch(
+                "mla.tui.get_install_status",
+                side_effect=lambda entry: status_by_key[entry.key],
+            ),
+            patch("mla.tui.curses.wrapper", side_effect=lambda draw, entries: draw(screen, entries)),
+        ):
+            selected = run_tui(self.entries)
+
+        self.assertEqual(selected, self.entries)
+        self.assertIn("NOT INSTALLED ONLY", "\n".join(screen.lines))
+        self.assertIn("2 entries", "\n".join(screen.lines))
 
     def test_help_view_explains_catalog_types_with_examples(self) -> None:
         class FakeScreen:
