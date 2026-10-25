@@ -1,8 +1,8 @@
 [
-  {"name": "GitConfig", "description": "Git config: upstream installer or MLA starter", "category": "Git", "source": "git/.gitconfig", "target": ".gitconfig", "upstream_installer_url": "https://raw.githubusercontent.com/shahinabdi/git-config/main/setup-git-config.sh"},
-  {"name": "EzaAliases", "description": "Shell aliases for eza", "category": "Shell", "source": "shell/aliases.bash", "target": ".config/dotfiles/aliases.bash"},
-  {"name": "Tmux", "description": "Starter tmux configuration", "category": "Terminal", "source": "tmux/tmux.conf", "target": ".config/tmux/tmux.conf"},
-  {"name": "Alacritty", "description": "Starter Alacritty configuration", "category": "Terminal", "source": "alacritty/alacritty.toml", "target": ".config/alacritty/alacritty.toml"},
-  {"name": "Kitty", "description": "Starter Kitty configuration", "category": "Terminal", "source": "kitty/kitty.conf", "target": ".config/kitty/kitty.conf"},
-  {"name": "Neovim", "description": "Starter Neovim configuration", "category": "Editor", "source": "nvim/init.lua", "target": ".config/nvim/init.lua"}
+  {"name": "GitConfig", "description": "Git config: upstream installer or MLA starter", "category": "Config", "source": "git/.gitconfig", "target": ".gitconfig", "upstream_installer_url": "https://raw.githubusercontent.com/shahinabdi/git-config/main/setup-git-config.sh"},
+  {"name": "EzaAliases", "description": "Shell aliases for eza", "category": "Config", "source": "shell/aliases.bash", "target": ".config/dotfiles/aliases.bash"},
+  {"name": "TmuxConfig", "description": "Tmux configuration", "category": "Config", "source": "tmux/tmux.conf", "target": ".config/tmux/tmux.conf"},
+  {"name": "AlacrittyConfig", "description": "Alacritty configuration", "category": "Config", "source": "alacritty/alacritty.toml", "target": ".config/alacritty/alacritty.toml"},
+  {"name": "KittyConfig", "description": "Kitty configuration", "category": "Config", "source": "kitty/kitty.conf", "target": ".config/kitty/kitty.conf"},
+  {"name": "NeovimConfig", "description": "Neovim configuration", "category": "Config", "source": "nvim/init.lua", "target": ".config/nvim/init.lua"}
 ]
